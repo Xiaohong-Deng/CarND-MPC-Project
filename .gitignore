@@ -3,3 +3,7 @@ build
 tags
 .editorconfig
 .DS_Store
+
+# jetbrains
+.idea/
+cmake-build-debug/

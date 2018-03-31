@@ -7,10 +7,15 @@
 using namespace std;
 
 class MPC {
+ private:
+  size_t n_steps;
  public:
   MPC();
 
   virtual ~MPC();
+
+  // how many steps does MPC predicts
+  size_t getSteps();
 
   // Solve the model given an initial state and polynomial coefficients.
   // Return the first actuatotions.
