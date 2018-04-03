@@ -62,3 +62,11 @@ is the vehicle starting offset of a straight line (reference). If the MPC implem
 ### Procedures
 1. Polynomial fitting. The simulator provides you with the waypoints that you use to fit polynomial curve to. This is your reference trajectory
 2. Mind the error terms. Refer to lectures to see how `CTE` and `epsi` are computed. It is implicitly assumed that dt is sufficiently small such that vehicle is moving in straight line during dt.
+
+### Pitfalls
+1. Incorporate latency. To incorporate latency you need to compute the state of the vehicle after the latency. Use that as the initial state fed to `MPC::Solve`. Note we repeat the MPC computation at each time step. So you only need to consider latency for the current time step.
+2. Transform coordinates between car coordinate system and map coordinate system. In this project transforming between coordinate systems is no different than [the kidnapped vehicle](https://github.com/Xiaohong-Deng/CarND-Kidnapped-Vehicle-Project). psi is the vehicle heading relative to the map coordinate system. x, y is the vehicle coordinates in the map system. You can pass the data either in map system coordinates or in vehicle system coordinates, but to visualize you need the coordinates in
+the vehicle system. Transform the coordinates before feeding them to `MPC::Solve`
+3. Don't process all the waypoints. It's going to take too long.
+4. Tweaking time steps `N` and duration `dt`. Too large N will make computation expensive. Too small dt will essentially increase N given the horizon N*dt is fixed.
+5. psi(t+1) - psi(t) < 0 is considered turning right. But the simulator considers that a positive value indicates turning right. For psi(t+1) - psi(t) = A*delta(t), we feed delta(t) to the simulator. So we need to flip the sign of delta(t) to preserve the correct steering angle.
