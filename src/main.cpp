@@ -91,6 +91,9 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          double steer_value = j[1]['steering_angle'];
+          double throttle_value = j[1]['throttle'];
+          std::cout << "after load value" << std::endl;
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -98,32 +101,49 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-          Eigen::VectorXd x_waypts, y_waypts;
+          // incorporate latency
+          double Lf = 2.67;
+          double latency = 0.1;
+          px += v * latency * cos(psi);
+          py += v * latency * sin(psi);
+          psi += v * steer_value / Lf * latency;
+          v += throttle_value * latency;
+          std::cout << "after latency update" << std::endl;
+
+          Eigen::VectorXd x_waypts(ptsx.size()), y_waypts(ptsy.size());
+          x_waypts.fill(0.0);
+          y_waypts.fill(0.0);
           for (int i = 0; i < ptsx.size(); i++) {
-            x_waypts << ptsx[i];
-            y_waypts << ptsy[i];
+            double shift_x = ptsx[i] - px;
+            double shift_y = ptsy[i] - py;
+
+            x_waypts[i] = (shift_x * cos(-psi) - shift_y * sin(-psi));
+            y_waypts[i] = (shift_x * sin(-psi) + shift_y * cos(-psi));
           }
 
-          Eigen::VectorXd coeffs = polyfit(x_waypts, y_waypts, 3);
-          double cte = polyeval(coeffs, px) - py;
-          double slope = coeffs[1] + 2 * coeffs[2] * px + 3 * coeffs[3] * px * px;
-          double epsi = psi - atan(slope);
-          Eigen::VectorXd state;
-          state << px, py, psi, v, cte, epsi;
+          std::cout << "before polyfit" << std::endl;
+          auto coeffs = polyfit(x_waypts, y_waypts, 3);
+          std::cout << "after polyfit" << std::endl;
+          double cte = polyeval(coeffs, 0);
+          double epsi = -atan(-coeffs[1]);
+
+          Eigen::VectorXd state(6);
+          state << 0, 0, 0, v, cte, epsi;
+          std::cout << state[3] << std::endl;
           vector<double> vars = mpc.Solve(state, coeffs);
+          std::cout << vars.size() << std::endl;
 
           size_t n_steps = mpc.getSteps();
           size_t delta_start, a_start, x_start, y_start;
           x_start = 0;
           y_start = x_start + n_steps;
-          delta_start = y_start + 5 * n_steps;
-          a_start = delta_start + n_steps - 1;
+          delta_start = y_start + n_steps;
+          a_start = delta_start + 1;
 
-          double steer_value;
-          double throttle_value;
-
-          steer_value = vars[delta_start] / deg2rad(25);
+          steer_value = -vars[delta_start] / (deg2rad(25)*Lf);
           throttle_value = vars[a_start];
+          std::cout << steer_value << std::endl;
+          std::cout << throttle_value << std::endl;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -149,8 +169,13 @@ int main() {
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
-          next_x_vals = std::move(ptsx);
-          next_y_vals = std::move(ptsy);
+          // reference trajectory in vehicle system
+          double poly_inc = 2.5;
+          int num_points = 25;
+          for (int i = 1; i < num_points; i++) {
+            next_x_vals.push_back(i * poly_inc);
+            next_y_vals.push_back(polyeval(coeffs, poly_inc*i));
+          }
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line

@@ -6,8 +6,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 25;
-double dt = 0.05;
+size_t N = 10;
+double dt = 0.1;
 
 size_t x_start = 0;
 size_t y_start = x_start + N;
@@ -29,7 +29,7 @@ size_t a_start = delta_start + N - 1;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-double ref_v = 40.0;
+double ref_v = 60.0;
 
 class FG_eval {
  public:
@@ -44,10 +44,11 @@ class FG_eval {
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
     fg[0] = 0.0;
+    std::cout << "in operator()" << std::endl;
 
     for (int t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += 500 * CppAD::pow(vars[cte_start + t], 2);
+      fg[0] += 500 * CppAD::pow(vars[epsi_start + t], 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
@@ -90,7 +91,7 @@ class FG_eval {
       AD<double> a0 = vars[a_start + t - 1];
 
       // f0 is the function value at time t-1, psides0 is the slope at time t-1
-      double slope = coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * x0 * x0;
+      AD<double> slope = coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * x0 * x0;
       AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * x0 * x0 + coeffs[3] * x0 * x0 * x0;
       AD<double> psides0 = CppAD::atan(slope);
 
@@ -109,8 +110,8 @@ class FG_eval {
 //
 // MPC class definition implementation.
 //
-MPC::MPC(size_t s) {
-  n_steps = s;
+MPC::MPC() {
+  n_steps = 6;
 }
 MPC::~MPC() {}
 
@@ -120,7 +121,7 @@ size_t MPC::getSteps() {
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  size_t i;
+//  size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // TODO: Set the number of model variables (includes both states and inputs).
@@ -132,6 +133,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // TODO: Set the number of constraints
   size_t n_constraints = state.size() * N;
 
+  std::cout << "x coordinate is " << state(0) << std::endl;
   double x = state(0);
   double y = state(1);
   double psi = state(2);
@@ -192,6 +194,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[epsi_start] = epsi;
 
   // object that computes objective and constraints
+  std::cout << "before FG_eval" << std::endl;
   FG_eval fg_eval(coeffs);
 
   //
@@ -213,9 +216,11 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Numeric max_cpu_time          0.5\n";
 
   // place to return solution
+  std::cout << "before initialize solution" << std::endl;
   CppAD::ipopt::solve_result<Dvector> solution;
 
   // solve the problem
+  std::cout << "before solve" << std::endl;
   CppAD::ipopt::solve<Dvector, FG_eval>(
       options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
       constraints_upperbound, fg_eval, solution);
@@ -235,24 +240,17 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   size_t n_pred = state.size() * n_steps + (n_steps - 1) * 2;
   size_t x_pred_start = 0;
   size_t y_pred_start = x_pred_start + n_steps;
-  size_t psi_pred_start = y_pred_start + n_steps;
-  size_t v_pred_start = psi_pred_start + n_steps;
-  size_t cte_pred_start = v_pred_start + n_steps;
-  size_t epsi_pred_start = cte_pred_start + n_steps;
-  size_t delta_pred_start = epsi_pred_start + n_steps;
-  size_t a_pred_start = delta_pred_start + n_steps - 1;
+  size_t delta_pred_start = y_pred_start + n_steps;
+  size_t a_pred_start = delta_pred_start + 1;
 
   vector<double> mpc_states;
   mpc_states.reserve(n_pred);
   for (int t = 0; t < n_steps; t++) {
     mpc_states[x_pred_start + t] = solution.x[x_start + t];
     mpc_states[y_pred_start + t] = solution.x[y_start + t];
-    mpc_states[psi_pred_start + t] = solution.x[psi_start + t];
-    mpc_states[v_pred_start + t] = solution.x[v_start + t];
-    mpc_states[cte_pred_start + t] = solution.x[cte_start + t];
-    mpc_states[epsi_pred_start + t] = solution.x[epsi_start + t];
-    mpc_states[delta_pred_start + t] = solution.x[delta_start + t];
-    mpc_states[a_pred_start + t] = solution.x[a_start + t];
   }
-  return solution.x;
+  mpc_states[delta_pred_start] = solution.x[delta_start];
+  mpc_states[a_pred_start] = solution.x[a_start];
+
+  return mpc_states;
 }
