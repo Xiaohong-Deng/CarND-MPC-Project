@@ -91,9 +91,8 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
-          double steer_value = j[1]['steering_angle'];
-          double throttle_value = j[1]['throttle'];
-          std::cout << "after load value" << std::endl;
+          double steer_value = j[1]["steering_angle"];
+          double throttle_value = j[1]["throttle"];
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -108,42 +107,50 @@ int main() {
           py += v * latency * sin(psi);
           psi += v * steer_value / Lf * latency;
           v += throttle_value * latency;
-          std::cout << "after latency update" << std::endl;
 
-          Eigen::VectorXd x_waypts(ptsx.size()), y_waypts(ptsy.size());
-          x_waypts.fill(0.0);
-          y_waypts.fill(0.0);
+//          Eigen::VectorXd x_waypts(ptsx.size()), y_waypts(ptsy.size());
+//          x_waypts.fill(0.0);
+//          y_waypts.fill(0.0);
+//          for (int i = 0; i < ptsx.size(); i++) {
+//            double shift_x = ptsx[i] - px;
+//            double shift_y = ptsy[i] - py;
+//
+//            x_waypts[i] = (shift_x * cos(-psi) - shift_y * sin(-psi));
+//            y_waypts[i] = (shift_x * sin(-psi) + shift_y * cos(-psi));
+//          }
+
           for (int i = 0; i < ptsx.size(); i++) {
             double shift_x = ptsx[i] - px;
             double shift_y = ptsy[i] - py;
 
-            x_waypts[i] = (shift_x * cos(-psi) - shift_y * sin(-psi));
-            y_waypts[i] = (shift_x * sin(-psi) + shift_y * cos(-psi));
+            ptsx[i] = (shift_x * cos(0-psi) - shift_y * sin(0-psi));
+            ptsy[i] = (shift_x * sin(0-psi) + shift_y * cos(0-psi));
           }
 
-          std::cout << "before polyfit" << std::endl;
-          auto coeffs = polyfit(x_waypts, y_waypts, 3);
-          std::cout << "after polyfit" << std::endl;
+          double* ptrx = &ptsx[0];
+          Eigen::Map<Eigen::VectorXd> ptsx_transform(ptrx, 6);
+          double* ptry = &ptsy[0];
+          Eigen::Map<Eigen::VectorXd> ptsy_transform(ptry, 6);
+
+          auto coeffs = polyfit(ptsx_transform, ptsy_transform, 3);
           double cte = polyeval(coeffs, 0);
-          double epsi = -atan(-coeffs[1]);
+          double epsi = -atan(coeffs[1]);
 
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
-          std::cout << state[3] << std::endl;
-          vector<double> vars = mpc.Solve(state, coeffs);
-          std::cout << vars.size() << std::endl;
+          auto vars = mpc.Solve(state, coeffs);
 
-          size_t n_steps = mpc.getSteps();
-          size_t delta_start, a_start, x_start, y_start;
-          x_start = 0;
-          y_start = x_start + n_steps;
-          delta_start = y_start + n_steps;
-          a_start = delta_start + 1;
+//          size_t n_steps = mpc.getSteps();
+//          size_t delta_start, a_start, x_start, y_start;
+//          x_start = 0;
+//          y_start = x_start + n_steps;
+//          delta_start = y_start + n_steps;
+//          a_start = delta_start + 1;
 
-          steer_value = -vars[delta_start] / (deg2rad(25)*Lf);
-          throttle_value = vars[a_start];
-          std::cout << steer_value << std::endl;
-          std::cout << throttle_value << std::endl;
+          steer_value = vars[0] / (deg2rad(25));
+          throttle_value = vars[1];
+          std::cout << "steering angle is " << steer_value << std::endl;
+          std::cout << "throttle is " << throttle_value << std::endl;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -157,9 +164,12 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
-          for (int t = 0; t < n_steps; t++) {
-            mpc_x_vals.push_back(vars[x_start + t]);
-            mpc_y_vals.push_back(vars[y_start + t]);
+          for (int t = 2; t < vars.size(); t++) {
+            if (t % 2 == 0) {
+              mpc_x_vals.push_back(vars[t]);
+            } else {
+              mpc_y_vals.push_back(vars[t]);
+            }
           }
 
           msgJson["mpc_x"] = mpc_x_vals;

@@ -43,23 +43,22 @@ class FG_eval {
     // `fg` a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
-    fg[0] = 0.0;
-    std::cout << "in operator()" << std::endl;
+    fg[0] = 0;
 
     for (int t = 0; t < N; t++) {
-      fg[0] += 500 * CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += 500 * CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += 5000 * CppAD::pow(vars[cte_start + t], 2);
+      fg[0] += 4000 * CppAD::pow(vars[epsi_start + t], 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 2 * CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += 2 * CppAD::pow(vars[a_start + t], 2);
     }
 
     for (int t = 0; t < N - 2; t++) {
-      fg[0] = CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] = CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] = 1000 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] = 10 * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     // this set of constraints for objective function makes sure initial state are constants, not changeble variables
@@ -97,12 +96,12 @@ class FG_eval {
 
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
-      fg[1 + psi_start + t] = psi1 - (psi0 + v0 * delta0 / Lf * dt);
+      fg[1 + psi_start + t] = psi1 - (psi0 - v0 * delta0 / Lf * dt);
       fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
       fg[1 + cte_start + t] =
               cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
       fg[1 + epsi_start + t] =
-              epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+              epsi1 - ((psi0 - psides0) - v0 * delta0 / Lf * dt);
     }
   }
 };
@@ -110,14 +109,8 @@ class FG_eval {
 //
 // MPC class definition implementation.
 //
-MPC::MPC() {
-  n_steps = 6;
-}
+MPC::MPC() {}
 MPC::~MPC() {}
-
-size_t MPC::getSteps() {
-  return n_steps;
-}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
@@ -129,17 +122,16 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // element vector and there are 10 timesteps. The number of variables is:
   //
   // 4 * 10 + 2 * 9
-  size_t n_vars = state.size() * N + 2 * (N - 1);
+  size_t n_vars = 6 * N + 2 * (N - 1);
   // TODO: Set the number of constraints
-  size_t n_constraints = state.size() * N;
+  size_t n_constraints = 6 * N;
 
-  std::cout << "x coordinate is " << state(0) << std::endl;
-  double x = state(0);
-  double y = state(1);
-  double psi = state(2);
-  double v = state(3);
-  double cte = state(4);
-  double epsi = state(5);
+  double x = state[0];
+  double y = state[1];
+  double psi = state[2];
+  double v = state[3];
+  double cte = state[4];
+  double epsi = state[5];
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
@@ -194,7 +186,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[epsi_start] = epsi;
 
   // object that computes objective and constraints
-  std::cout << "before FG_eval" << std::endl;
   FG_eval fg_eval(coeffs);
 
   //
@@ -203,7 +194,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // options for IPOPT solver
   std::string options;
   // Uncomment this if you'd like more print information
-  options += "Integer print_level  0\n";
+  options += "Integer print_level  2\n";
   // NOTE: Setting sparse to true allows the solver to take advantage
   // of sparse routines, this makes the computation MUCH FASTER. If you
   // can uncomment 1 of these and see if it makes a difference or not but
@@ -213,14 +204,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
+  options += "Numeric max_cpu_time          100\n";
 
   // place to return solution
-  std::cout << "before initialize solution" << std::endl;
   CppAD::ipopt::solve_result<Dvector> solution;
 
   // solve the problem
-  std::cout << "before solve" << std::endl;
   CppAD::ipopt::solve<Dvector, FG_eval>(
       options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
       constraints_upperbound, fg_eval, solution);
@@ -237,20 +226,22 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  size_t n_pred = state.size() * n_steps + (n_steps - 1) * 2;
-  size_t x_pred_start = 0;
-  size_t y_pred_start = x_pred_start + n_steps;
-  size_t delta_pred_start = y_pred_start + n_steps;
-  size_t a_pred_start = delta_pred_start + 1;
+//  size_t n_pred = state.size() * n_steps + (n_steps - 1) * 2;
+//  size_t x_pred_start = 0;
+//  size_t y_pred_start = x_pred_start + n_steps;
+//  size_t delta_pred_start = y_pred_start + n_steps;
+//  size_t a_pred_start = delta_pred_start + 1;
 
   vector<double> mpc_states;
-  mpc_states.reserve(n_pred);
-  for (int t = 0; t < n_steps; t++) {
-    mpc_states[x_pred_start + t] = solution.x[x_start + t];
-    mpc_states[y_pred_start + t] = solution.x[y_start + t];
+  mpc_states.push_back(solution.x[delta_start]);
+  mpc_states.push_back(solution.x[a_start]);
+  std::cout << "steering value is " << mpc_states[0] << std::endl;
+  std::cout << "throttle is " << mpc_states[1] << std::endl;
+  for (int t = 0; t < N; t++) {
+    std::cout << "(x, y) is " << solution.x[x_start + t + 1] << " " << solution.x[y_start + t + 1] << std::endl;
+    mpc_states.push_back(solution.x[x_start + t + 1]);
+    mpc_states.push_back(solution.x[y_start + t + 1]);
   }
-  mpc_states[delta_pred_start] = solution.x[delta_start];
-  mpc_states[a_pred_start] = solution.x[a_start];
 
   return mpc_states;
 }

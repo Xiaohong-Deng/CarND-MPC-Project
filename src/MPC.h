@@ -7,8 +7,6 @@
 using namespace std;
 
 class MPC {
- private:
-  size_t n_steps;
  public:
   MPC();
 
