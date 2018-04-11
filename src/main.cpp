@@ -103,10 +103,10 @@ int main() {
           // incorporate latency
           double Lf = 2.67;
           double latency = 0.1;
-          px += v * latency * cos(psi);
-          py += v * latency * sin(psi);
-          psi += v * steer_value / Lf * latency;
-          v += throttle_value * latency;
+//          px += v * latency * cos(psi);
+//          py += v * latency * sin(psi);
+//          psi += v * steer_value / Lf * latency;
+//          v += throttle_value * latency;
 
 //          Eigen::VectorXd x_waypts(ptsx.size()), y_waypts(ptsy.size());
 //          x_waypts.fill(0.0);
@@ -136,8 +136,12 @@ int main() {
           double cte = polyeval(coeffs, 0);
           double epsi = -atan(coeffs[1]);
 
+          double x_delay = v * cos(psi) * latency;
+          double psi_delay = -v * steer_value / Lf * latency;
+          double v_delay = v + throttle_value * latency;
+
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
+          state << x_delay, 0, psi_delay, v_delay, cte, epsi;
 //          std::cout << "speed is " << state[3] << std::endl;
 //          std::cout << "cte is " << state[4] << std::endl;
 //          std::cout << "epsi is " << state[5] << std::endl;

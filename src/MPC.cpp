@@ -7,7 +7,7 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 10;
-double dt = 0.1;
+double dt = 0.15;
 
 size_t x_start = 0;
 size_t y_start = x_start + N;
@@ -49,18 +49,18 @@ class FG_eval {
     fg[0] = 0;
 
     for (size_t t = 0; t < N; t++) {
-      fg[0] += 2000 * CppAD::pow(vars[cte_start + t] - ref_cte, 2);
-      fg[0] += 2000 * CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
+      fg[0] += 1000 * CppAD::pow(vars[cte_start + t] - ref_cte, 2);
+      fg[0] += 1000 * CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     for (size_t t = 0; t < N - 1; t++) {
-      fg[0] += 5 * CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 2 * CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += 2 * CppAD::pow(vars[a_start + t], 2);
     }
 
     for (size_t t = 0; t < N - 2; t++) {
-      fg[0] = 200 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] = 100 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
       fg[0] = 10 * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
@@ -207,7 +207,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          100.5\n";
+  options += "Numeric max_cpu_time          50\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
