@@ -29,7 +29,9 @@ size_t a_start = delta_start + N - 1;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-double ref_v = 60.0;
+double ref_cte = 0;
+double ref_epsi = 0;
+double ref_v = 80.0;
 
 class FG_eval {
  public:
@@ -43,21 +45,22 @@ class FG_eval {
     // `fg` a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
+    std::cout << "size of fg[] is " << fg.size() << std::endl;
     fg[0] = 0;
 
     for (int t = 0; t < N; t++) {
-      fg[0] += 5000 * CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += 4000 * CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += 2000 * CppAD::pow(vars[cte_start + t] - ref_cte, 2);
+      fg[0] += 2000 * CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += 2 * CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 2 * CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 5 * CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += CppAD::pow(vars[a_start + t], 2);
     }
 
     for (int t = 0; t < N - 2; t++) {
-      fg[0] = 1000 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] = 200 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
       fg[0] = 10 * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
@@ -90,9 +93,8 @@ class FG_eval {
       AD<double> a0 = vars[a_start + t - 1];
 
       // f0 is the function value at time t-1, psides0 is the slope at time t-1
-      AD<double> slope = coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * x0 * x0;
       AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * x0 * x0 + coeffs[3] * x0 * x0 * x0;
-      AD<double> psides0 = CppAD::atan(slope);
+      AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * x0 * x0);
 
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
@@ -136,8 +138,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
   Dvector vars(n_vars);
+  std::cout << "size of vars[] is " << vars.size() << std::endl;
   for (int i = 0; i < n_vars; i++) {
-    vars[i] = 0;
+    vars[i] = 0.0;
   }
   vars[x_start] = x;
   vars[y_start] = y;
@@ -194,7 +197,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // options for IPOPT solver
   std::string options;
   // Uncomment this if you'd like more print information
-  options += "Integer print_level  2\n";
+  options += "Integer print_level  0\n";
   // NOTE: Setting sparse to true allows the solver to take advantage
   // of sparse routines, this makes the computation MUCH FASTER. If you
   // can uncomment 1 of these and see if it makes a difference or not but
@@ -204,7 +207,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          100\n";
+  options += "Numeric max_cpu_time          100.5\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
@@ -233,11 +236,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 //  size_t a_pred_start = delta_pred_start + 1;
 
   vector<double> mpc_states;
+  std::cout << "the size of solution is " << solution.x.size() << std::endl;
   mpc_states.push_back(solution.x[delta_start]);
   mpc_states.push_back(solution.x[a_start]);
   std::cout << "steering value is " << mpc_states[0] << std::endl;
   std::cout << "throttle is " << mpc_states[1] << std::endl;
-  for (int t = 0; t < N; t++) {
+  for (int t = 0; t < N - 1; t++) {
     std::cout << "(x, y) is " << solution.x[x_start + t + 1] << " " << solution.x[y_start + t + 1] << std::endl;
     mpc_states.push_back(solution.x[x_start + t + 1]);
     mpc_states.push_back(solution.x[y_start + t + 1]);

@@ -138,6 +138,9 @@ int main() {
 
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
+//          std::cout << "speed is " << state[3] << std::endl;
+//          std::cout << "cte is " << state[4] << std::endl;
+//          std::cout << "epsi is " << state[5] << std::endl;
           auto vars = mpc.Solve(state, coeffs);
 
 //          size_t n_steps = mpc.getSteps();
