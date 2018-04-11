@@ -100,24 +100,14 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
+          steer_value = -steer_value;
           // incorporate latency
           double Lf = 2.67;
           double latency = 0.1;
-//          px += v * latency * cos(psi);
-//          py += v * latency * sin(psi);
-//          psi += v * steer_value / Lf * latency;
-//          v += throttle_value * latency;
-
-//          Eigen::VectorXd x_waypts(ptsx.size()), y_waypts(ptsy.size());
-//          x_waypts.fill(0.0);
-//          y_waypts.fill(0.0);
-//          for (int i = 0; i < ptsx.size(); i++) {
-//            double shift_x = ptsx[i] - px;
-//            double shift_y = ptsy[i] - py;
-//
-//            x_waypts[i] = (shift_x * cos(-psi) - shift_y * sin(-psi));
-//            y_waypts[i] = (shift_x * sin(-psi) + shift_y * cos(-psi));
-//          }
+          px += v * latency * cos(psi);
+          py += v * latency * sin(psi);
+          psi += v * steer_value / Lf * latency;
+          v += throttle_value * latency;
 
           for (size_t i = 0; i < ptsx.size(); i++) {
             double shift_x = ptsx[i] - px;
@@ -133,28 +123,14 @@ int main() {
           Eigen::Map<Eigen::VectorXd> ptsy_transform(ptry, 6);
 
           auto coeffs = polyfit(ptsx_transform, ptsy_transform, 3);
-          double cte = polyeval(coeffs, 0);
-          double epsi = -atan(coeffs[1]);
-
-          double x_delay = v * cos(psi) * latency;
-          double psi_delay = -v * steer_value / Lf * latency;
-          double v_delay = v + throttle_value * latency;
+          const double cte = polyeval(coeffs, 0);
+          const double epsi = -atan(coeffs[1]);
 
           Eigen::VectorXd state(6);
-          state << x_delay, 0, psi_delay, v_delay, cte, epsi;
-//          std::cout << "speed is " << state[3] << std::endl;
-//          std::cout << "cte is " << state[4] << std::endl;
-//          std::cout << "epsi is " << state[5] << std::endl;
+          state << 0.0, 0.0, 0.0, v, cte, epsi;
           auto vars = mpc.Solve(state, coeffs);
 
-//          size_t n_steps = mpc.getSteps();
-//          size_t delta_start, a_start, x_start, y_start;
-//          x_start = 0;
-//          y_start = x_start + n_steps;
-//          delta_start = y_start + n_steps;
-//          a_start = delta_start + 1;
-
-          steer_value = vars[0] / (deg2rad(25));
+          steer_value = vars[0] / deg2rad(25);;
           throttle_value = vars[1];
           std::cout << "steering angle is " << steer_value << std::endl;
           std::cout << "throttle is " << throttle_value << std::endl;

@@ -9,14 +9,14 @@ using CppAD::AD;
 size_t N = 10;
 double dt = 0.15;
 
-size_t x_start = 0;
-size_t y_start = x_start + N;
-size_t psi_start = y_start + N;
-size_t v_start = psi_start + N;
-size_t cte_start = v_start + N;
-size_t epsi_start = cte_start + N;
-size_t delta_start = epsi_start + N;
-size_t a_start = delta_start + N - 1;
+const size_t x_start = 0;
+const size_t y_start = x_start + N;
+const size_t psi_start = y_start + N;
+const size_t v_start = psi_start + N;
+const size_t cte_start = v_start + N;
+const size_t epsi_start = cte_start + N;
+const size_t delta_start = epsi_start + N;
+const size_t a_start = delta_start + N - 1;
 // This value assumes the model presented in the classroom is used.
 //
 // It was obtained by measuring the radius formed by running the vehicle in the
@@ -31,7 +31,7 @@ const double Lf = 2.67;
 
 double ref_cte = 0;
 double ref_epsi = 0;
-double ref_v = 80.0;
+double ref_v = 40.0;
 
 class FG_eval {
  public:
@@ -60,8 +60,8 @@ class FG_eval {
     }
 
     for (size_t t = 0; t < N - 2; t++) {
-      fg[0] = 100 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] = 10 * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += 100 * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += 10 * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     // this set of constraints for objective function makes sure initial state are constants, not changeble variables
@@ -116,7 +116,7 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-//  size_t i;
+  size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // TODO: Set the number of model variables (includes both states and inputs).
@@ -235,7 +235,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 //  size_t delta_pred_start = y_pred_start + n_steps;
 //  size_t a_pred_start = delta_pred_start + 1;
 
-  vector<double> mpc_states;
+  std::vector<double> mpc_states;
   std::cout << "the size of solution is " << solution.x.size() << std::endl;
   mpc_states.push_back(solution.x[delta_start]);
   mpc_states.push_back(solution.x[a_start]);

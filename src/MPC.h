@@ -12,9 +12,6 @@ class MPC {
 
   virtual ~MPC();
 
-  // how many steps does MPC predicts
-  size_t getSteps();
-
   // Solve the model given an initial state and polynomial coefficients.
   // Return the first actuatotions.
   vector<double> Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs);

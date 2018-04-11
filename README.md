@@ -1,6 +1,7 @@
 # CarND-Controls-MPC
 Self-Driving Car Engineer Nanodegree Program
 
+![screenshot][0]
 ---
 
 ## Dependencies
@@ -69,3 +70,6 @@ is the vehicle starting offset of a straight line (reference). If the MPC implem
 the vehicle system. Transform the coordinates before feeding them to `MPC::Solve`
 3. Tweaking time steps `N` and duration `dt`. Too large N will make computation expensive. Too small dt will essentially increase N given the horizon N*dt is fixed. If dt is set to a larger value during dt the surroundings of the vehicle may have changed such that the trajectory is no longer feasible.
 4. psi(t+1) - psi(t) < 0 is considered turning right. But the simulator considers that a positive value indicates turning right. For psi(t+1) - psi(t) = A*delta(t), we feed delta(t) to the simulator. So we need to flip the sign of delta(t) to preserve the correct steering angle.
+5. When incorporating latency we need to update new psi using steering angle fed by the simulator. That also requires sign flipping. Namely `steer_angle = -steer_angle` otherwise it will lead swinging waypoints fitted polynomial.
+
+[0]: ./sh-2018-04-11.png
