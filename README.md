@@ -72,4 +72,9 @@ the vehicle system. Transform the coordinates before feeding them to `MPC::Solve
 4. psi(t+1) - psi(t) < 0 is considered turning right. But the simulator considers that a positive value indicates turning right. For psi(t+1) - psi(t) = A*delta(t), we feed delta(t) to the simulator. So we need to flip the sign of delta(t) to preserve the correct steering angle.
 5. When incorporating latency we need to update new psi using steering angle fed by the simulator. That also requires sign flipping. Namely `steer_angle = -steer_angle` otherwise it will lead swinging waypoints fitted polynomial.
 
+### Choice of incorporating latency
+There are two ways of incorporating latency. In my implementation I chose the first one.
+1. In this case we think of the vehicle state after latency as the origin of the vehicle system. First calculate coordinates of the vehicle in the map system and its psi after latency together with speed. Based on that updated state transform the waypoints to the vehicle system. Then feed state to solver where (x, y, psi) = (0, 0, 0).
+2. In this case we think of the vehicle state before latency as the origin of the vehicle system. First we transform waypoints to the vehicle system. Then we compute the vehicle state after latency. When we feed state to the solver we have nonzero x, y and psi.
+
 [0]: ./sh-2018-04-11.png
