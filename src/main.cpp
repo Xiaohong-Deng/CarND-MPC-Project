@@ -119,7 +119,7 @@ int main() {
 //            y_waypts[i] = (shift_x * sin(-psi) + shift_y * cos(-psi));
 //          }
 
-          for (int i = 0; i < ptsx.size(); i++) {
+          for (size_t i = 0; i < ptsx.size(); i++) {
             double shift_x = ptsx[i] - px;
             double shift_y = ptsy[i] - py;
 
@@ -167,7 +167,7 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
-          for (int t = 2; t < vars.size(); t++) {
+          for (size_t t = 2; t < vars.size(); t++) {
             if (t % 2 == 0) {
               mpc_x_vals.push_back(vars[t]);
             } else {
